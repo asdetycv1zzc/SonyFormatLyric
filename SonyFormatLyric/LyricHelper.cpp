@@ -3,6 +3,7 @@
 #include<string>
 #include<vector>
 #include<fstream>
+#include<algorithm>
 #include"LyricHelper.h"
 #include"UnicodeToUTF8.h"
 using namespace std;
@@ -64,7 +65,7 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 	}
 	*/
 	FILE* fp = NULL;
-	fp = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "rb");
+	fp = _wfopen(_k_LyricAddress.c_str(), L"rb+");
 	fseek(fp, 0, SEEK_END);
 	size_t size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
@@ -75,7 +76,7 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 	if (fp != NULL)
 	{
 		// UTF-8 file should offset 3 byte from start position.
-		fseek(fp, 0 , 0);
+		fseek(fp, 0, 0);
 		int buferSize = (int)size;
 		char* szBuf = new char[buferSize + 1];
 		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
@@ -197,8 +198,13 @@ const wstring LyricHelper::_s_ConvertTime(const wstring& _k_SourceTime)
 	_part_minute = _k_SourceTime.substr(0, _k_SourceTime.find_first_of(L':'));
 	_part_second = _k_SourceTime.substr(_k_SourceTime.find_first_of(L':') + 1, _k_SourceTime.find_first_of(L'.') - _k_SourceTime.find_first_of(L':') - 1);
 	_part_milisecond = _k_SourceTime.substr(_k_SourceTime.find_first_of(L'.') + 1);
-	while (_part_milisecond.size() > 3)
+	while (_part_milisecond.size() >= 3)
 		_part_milisecond.pop_back();
+	while (_part_minute.size() < 2)
+	{
+		_part_minute.push_back(L'0');
+		reverse(_part_minute.begin(), _part_minute.end());
+	}
 	_result = L'[' + _part_minute + L':' + _part_second + L'.' + _part_milisecond + L']';
 	return _result;
 }
@@ -238,8 +244,8 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 	try
 	{
 		//unsigned long long i = 0;
-		_LyricFile = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "wb");
-		fseek(_LyricFile, 0 , 0);
+		_LyricFile = _wfopen(_k_LyricAddress.c_str(), L"wb");
+		fseek(_LyricFile, 0, 0);
 		if (_LyricFile == NULL) return NULL;
 
 		auto _size = _k_CombinedLyric.size();
@@ -261,9 +267,9 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 		WideCharToMultiByte(CP_UTF8, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
 
 		UTF8source = szRes;
-		
+
 		fwrite(UTF8source.c_str(), sizeof(char), strlen(UTF8source.c_str()), _LyricFile);
-		
+
 		fclose(_LyricFile);
 
 		return true;
@@ -285,6 +291,7 @@ const bool LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const Line
 {
 	auto _sourceLyric = _s_ReadLyric(k_LyricAddress);
 	if (!_s_BackupLyric(k_LyricAddress)) return false;
+	if (_sourceLyric.find(L'[') == wstring::npos || _sourceLyric.find(L']') == wstring::npos) return true;
 	auto _splitedLyric = _s_SplitLyric(_sourceLyric);
 	auto _size = _splitedLyric.size();
 	wstring _tempLyricContent, _tempConvertedTime;
@@ -292,6 +299,7 @@ const bool LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const Line
 	for (size_t i = 0; i < _size; i++)
 	{
 		_tempLyricContent = _s_GetLyricContent(_splitedLyric[i]);
+		if (_tempLyricContent == L"") continue;
 		_tempConvertedTime = _s_ConvertTime(_s_GetLyricTime(_splitedLyric[i]));
 		_tempAllLyricLines.push_back(_s_CombineLyricLine(_tempConvertedTime, _tempLyricContent));
 	}
