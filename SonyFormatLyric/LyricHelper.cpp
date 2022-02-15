@@ -84,8 +84,6 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 		result.append(szBuf);
 		delete[] szBuf;
 
-		auto _log = UTF8ToGB(result.c_str());
-
 		WCHAR* strSrc;
 
 		int i = MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, NULL, 0);
@@ -130,6 +128,65 @@ const unsigned long long LyricHelper::_GetLyricLength()
 {
 	return _s_GetLyricLength(LyricHelper::LyricAddress);
 }
+
+const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddress)
+{
+	ifstream fin(_k_LyricAddress, ios::in | ios::binary);
+	try
+	{
+		string _temp;
+		unsigned char s2;
+		fin.read((char*)&s2, sizeof(s2));//读取第一个字节，然后左移8位
+		int p = s2 << 8;
+		fin.read((char*)&s2, sizeof(s2));//读取第二个字节
+		p |= s2;
+
+		TextEncoding _result;
+
+		switch (p)//判断文本前两个字节
+		{
+		case 0xfffe:	//65534
+			_result = TextEncoding::Unicode;
+			break;
+		case 0xfeff:	//65279
+			_result = TextEncoding::UnicodeBigEndian;
+			break;
+		case 0xefbb:	//61371
+			_result = TextEncoding::UTF8WithBOM;
+			break;
+		default:
+		{
+			fin.seekg(0, ios::beg);
+			fin >> _temp;
+			if (IsUTF8WithoutBOM(const_cast<char*>(_temp.c_str()), _temp.size()))
+			{
+				_result = TextEncoding::UTF8WithoutBOM;
+				break;
+			}
+			else
+			{
+				_result = TextEncoding::GB2312;
+				break;
+			}	
+		}
+		}
+		fin.close();
+		return _result;
+	}
+	catch (const exception& e)
+	{
+		cerr << e.what() << endl;
+		if (fin.is_open())
+			fin.close();
+		return TextEncoding::UNKNOWN;
+	}
+
+}
+const TextEncoding LyricHelper::_GetLyricEncoding()
+{
+	return _s_GetLyricEncoding(LyricHelper::LyricAddress);
+}
+/*https ://blog.csdn.net/kikityan/article/details/89923808*/
 
 const bool LyricHelper::_s_BackupLyric(const wstring& _k_LyricAddress)
 {

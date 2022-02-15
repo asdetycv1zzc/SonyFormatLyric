@@ -3,11 +3,23 @@
 #include<string>
 #include<vector>
 #include<fstream>
+#include"DealMiscellousProblems.h"
 
 enum LinebreakType
 {
 	UNIX,	/* \n */
 	WINDOWS,/* \r\n */
+};
+
+enum TextEncoding
+{
+	UTF8WithoutBOM,
+	UTF8WithBOM,
+	ANSI,
+	Unicode,
+	UnicodeBigEndian,
+	GB2312,
+	UNKNOWN,
 };
 
 class LyricHelper
@@ -19,6 +31,9 @@ private:
 	const static unsigned long long _s_GetLyricLength(const std::wstring& _k_LyricAddress);
 	const std::wstring _ReadLyric();
 	const unsigned long long _GetLyricLength();
+
+	const static TextEncoding _s_GetLyricEncoding(const std::wstring& _k_LyricAddress);
+	const TextEncoding _GetLyricEncoding();
 
 	const static bool _s_BackupLyric(const std::wstring& _k_LyricAddress);
 	const bool _BackupLyric();
