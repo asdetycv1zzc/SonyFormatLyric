@@ -24,12 +24,18 @@
     <ClCompile Include="UnicodeToUTF8.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DealMiscellousProblems.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LyricHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="UnicodeToUTF8.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DealMiscellousProblems.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
