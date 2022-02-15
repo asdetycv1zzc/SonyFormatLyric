@@ -1,76 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<string>
 #include<vector>
 #include<fstream>
+#include"LyricHelper.h"
+#include"UnicodeToUTF8.h"
 using namespace std;
-
-enum LinebreakType
-{
-	UNIX,	/* \n */
-	WINDOWS,/* \r\n */
-};
-
-class LyricHelper
-{
-private:
-	wstring LyricAddress;
-
-	const static wstring _s_ReadLyric(const wstring& _k_LyricAddress);
-	const static unsigned long long _s_GetLyricLength(const wstring& _k_LyricAddress);
-	const wstring _ReadLyric();
-	const unsigned long long _GetLyricLength();
-
-	const static bool _s_BackupLyric(const wstring& _k_LyricAddress);
-	const bool _BackupLyric();
-
-	const static vector<wstring> _s_SplitLyric(const wstring& _k_SourceLyric);
-	const vector<wstring> _SplitLyric();
-
-	const static wstring _s_GetLyricContent(const wstring& _k_SourceLyricLine);
-	const static wstring _s_GetLyricTime(const wstring& _k_SourceLyricLine);
-
-	const static wstring _s_ConvertTime(const wstring& _k_SourceTime);
-
-	const static wstring _s_CombineLyricLine(const wstring& _k_ConvertedTime, const wstring& _k_LyricLine);
-	const static wstring _s_CombineAllLyric(const vector<wstring> &_k_LyricLines, const LinebreakType &_k_LinebreakType = LinebreakType::UNIX);
-
-	const static bool _s_WriteLyric(const wstring& _k_LyricAddress, const wstring& _k_CombinedLyric);
-	const bool _WriteLyric(const wstring& _k_CombinedLyric);
-
-public:
-
-	LyricHelper();
-	LyricHelper(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
-	~LyricHelper();
-
-	//static wstring s_ReadLyric(const wstring& k_LyricAddress);
-	//wstring ReadLyric();
-
-	//static bool s_BackupLyric(const wstring& k_LyricAddress);
-	//bool BackupLyric();
-
-	//static vector<wstring> s_SplitLyric(const wstring& k_LyricAddress);
-	//vector<wstring> SplitLyric();
-
-	//static wstring s_GetLyricContent(const wstring& k_SourceLyricLine);
-	//static wstring s_GetLyricTime(const wstring& k_SourceLyricLine);
-
-	//static wstring s_ConvertTime(const wstring& k_SourceTime);
-	//
-
-	//static wstring s_CombineLyricLine(const wstring& k_ConvertedTime, const wstring& k_LyricLine);
-	//static wstring s_CombineAllLyric(const vector<wstring>& k_LyricLines, const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
-
-	//static wstring s_WriteLyric(const wstring& k_LyricAddress);
-	//wstring WriteLyric();
-
-	const static bool s_ConvertLyric(const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
-	const bool ConvertLyric();
-
-};
 
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
+	/*
 	fstream _LyricFile;
 	try
 	{
@@ -88,23 +27,59 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 
 		_Content.resize(_size, 0);
 
-		while (_LyricFile.read((char *)&_TempContent[i], sizeof(wchar_t)))
+		while (_LyricFile.read((char*)&_TempContent[i], sizeof(wchar_t)))
 		{
 			_Content[i] = _TempContent[i];
 			i++;
 		}
 		return _Content;
 	}
-	catch (const exception &e)
+	catch (const exception& e)
 	{
 		cerr << e.what() << endl;
 		if (_LyricFile.is_open())
 			_LyricFile.close();
 		return NULL;
 	}
+	*/
+	FILE* fp = NULL;
+	fp = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "rb");
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	std::string result;
+	std::wstring _result;
+
+	if (fp != NULL)
+	{
+		// UTF-8 file should offset 3 byte from start position.
+		fseek(fp, 0, 0);
+		int buferSize = (int)size - 3;
+		char* szBuf = new char[buferSize + 1];
+		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
+		fread(szBuf, sizeof(char), buferSize - 3, fp);
+		result.append(szBuf);
+		delete[] szBuf;
+
+		WCHAR* strSrc;
+
+		int i = MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, NULL, 0);
+		strSrc = new WCHAR[i + 1];
+		MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, strSrc, i);
+
+		_result = strSrc;
+
+		delete[] strSrc;
+	}
+
+	fclose(fp);
+	//auto _result = wstring(result.begin(), result.end());
+	return _result;
 }
 const unsigned long long LyricHelper::_s_GetLyricLength(const wstring& _k_LyricAddress)
 {
+
 	fstream _LyricFile;
 	try
 	{
@@ -115,7 +90,7 @@ const unsigned long long LyricHelper::_s_GetLyricLength(const wstring& _k_LyricA
 		_LyricFile.seekg(OriginLocation, ios::beg);
 		return Length;
 	}
-	catch (const exception &e)
+	catch (const exception& e)
 	{
 		cerr << e.what() << endl;
 		if (_LyricFile.is_open())
@@ -195,8 +170,126 @@ const wstring LyricHelper::_s_GetLyricTime(const wstring& _k_SourceLyricLine)
 
 const wstring LyricHelper::_s_ConvertTime(const wstring& _k_SourceTime)
 {
-	wstring _part_minute,_part_second,_part_milisecond;
+	wstring _part_minute, _part_second, _part_milisecond, _result;
 	_part_minute = _k_SourceTime.substr(0, _k_SourceTime.find_first_of(L':'));
 	_part_second = _k_SourceTime.substr(_k_SourceTime.find_first_of(L':') + 1, _k_SourceTime.find_first_of(L'.') - _k_SourceTime.find_first_of(L':') - 1);
 	_part_milisecond = _k_SourceTime.substr(_k_SourceTime.find_first_of(L'.') + 1);
+	while (_part_milisecond.size() > 3)
+		_part_milisecond.pop_back();
+	_result = L'[' + _part_minute + L':' + _part_second + L'.' + _part_milisecond + L']';
+	return _result;
+}
+
+const wstring LyricHelper::_s_CombineLyricLine(const wstring& _k_ConvertedTime, const wstring& _k_LyricLine)
+{
+	auto _result = _k_ConvertedTime + _k_LyricLine;
+	return _result;
+}
+const wstring LyricHelper::_s_CombineAllLyric(const vector<wstring>& _k_LyricLines, const LinebreakType& _k_LinebreakType)
+{
+	auto _size = _k_LyricLines.size();
+	wstring _result;
+	for (size_t i = 0; i < _size; i++)
+	{
+		_result += _k_LyricLines[i];
+		switch (_k_LinebreakType)
+		{
+		case LinebreakType::WINDOWS:
+		{
+			_result += L"\r";
+			[[fallthrough]];
+		}
+		case LinebreakType::UNIX:
+		{
+			_result += L"\n";
+			break;
+		}
+		}
+	}
+	return _result;
+}
+
+const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstring& _k_CombinedLyric)
+{
+	FILE* _LyricFile = NULL;
+	try
+	{
+		//unsigned long long i = 0;
+		_LyricFile = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "w");
+		fseek(_LyricFile, 0 , 0);
+		if (_LyricFile == NULL) return NULL;
+
+		auto _size = _k_CombinedLyric.size();
+		//char* UTF8Content = UnicodeToUtf8(_k_CombinedLyric.c_str());
+
+		//UTF8Content = szRes;
+		/*
+		LPSTR szRes;
+		i = WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, NULL, 0, NULL, NULL);
+		szRes = new CHAR[i + 1];
+		WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
+		*/
+		string UTF8;
+		WCHAR* strSrc;
+		LPSTR szRes;
+
+		int i = WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, NULL, 0, NULL, NULL);
+		szRes = new CHAR[i + 1];
+		WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
+
+		UTF8 = szRes;
+		
+		fprintf(_LyricFile, "%s", UTF8.c_str());
+		fclose(_LyricFile);
+
+		return true;
+	}
+	catch (const exception& e)
+	{
+		cerr << e.what() << endl;
+		if (_LyricFile != NULL)
+			fclose(_LyricFile);
+		return false;
+	}
+}
+const bool LyricHelper::_WriteLyric(const wstring& _k_CombinedLyric)
+{
+	return _s_WriteLyric(LyricHelper::LyricAddress, _k_CombinedLyric);
+}
+
+const bool LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType)
+{
+	auto _sourceLyric = _s_ReadLyric(k_LyricAddress);
+	if (!_s_BackupLyric(k_LyricAddress)) return false;
+	auto _splitedLyric = _s_SplitLyric(_sourceLyric);
+	auto _size = _splitedLyric.size();
+	wstring _tempLyricContent, _tempConvertedTime;
+	vector<wstring> _tempAllLyricLines;
+	for (size_t i = 0; i < _size; i++)
+	{
+		_tempLyricContent = _s_GetLyricContent(_splitedLyric[i]);
+		_tempConvertedTime = _s_ConvertTime(_s_GetLyricTime(_splitedLyric[i]));
+		_tempAllLyricLines.push_back(_s_CombineLyricLine(_tempConvertedTime, _tempLyricContent));
+	}
+	auto _tempAllLyric = _s_CombineAllLyric(_tempAllLyricLines, k_LinebreakType);
+	auto _result = _s_WriteLyric(k_LyricAddress, _tempAllLyric);
+	return _result;
+}
+const bool LyricHelper::ConvertLyric(const LinebreakType& k_LinebreakType)
+{
+	return s_ConvertLyric(LyricHelper::LyricAddress, k_LinebreakType);
+}
+
+LyricHelper::LyricHelper()
+{
+	this->LyricAddress = L"";
+}
+LyricHelper::LyricHelper(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType)
+{
+	this->LyricAddress.clear();
+	this->LyricAddress += wstring(k_LyricAddress);
+}
+LyricHelper::~LyricHelper()
+{
+	this->LyricAddress.clear();
 }
