@@ -7,6 +7,27 @@
 #include"UnicodeToUTF8.h"
 using namespace std;
 
+const string UTF8ToGB(const char* str)
+{
+	string result;
+	WCHAR* strSrc;
+	LPSTR szRes;
+
+	int i = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+	strSrc = new WCHAR[i + 1];
+	MultiByteToWideChar(CP_UTF8, 0, str, -1, strSrc, i);
+
+	i = WideCharToMultiByte(CP_ACP, 0, strSrc, -1, NULL, 0, NULL, NULL);
+	szRes = new CHAR[i + 1];
+	WideCharToMultiByte(CP_ACP, 0, strSrc, -1, szRes, i, NULL, NULL);
+
+	result = szRes;
+	delete[]strSrc;
+	delete[]szRes;
+
+	return result;
+}
+
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
 	/*
@@ -54,13 +75,15 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 	if (fp != NULL)
 	{
 		// UTF-8 file should offset 3 byte from start position.
-		fseek(fp, 0, 0);
-		int buferSize = (int)size - 3;
+		fseek(fp, 0 , 0);
+		int buferSize = (int)size;
 		char* szBuf = new char[buferSize + 1];
 		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
-		fread(szBuf, sizeof(char), buferSize - 3, fp);
+		fread(szBuf, sizeof(char), buferSize, fp);
 		result.append(szBuf);
 		delete[] szBuf;
+
+		auto _log = UTF8ToGB(result.c_str());
 
 		WCHAR* strSrc;
 
@@ -215,7 +238,7 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 	try
 	{
 		//unsigned long long i = 0;
-		_LyricFile = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "w");
+		_LyricFile = fopen(UnicodeToUtf8(_k_LyricAddress.c_str()), "wb");
 		fseek(_LyricFile, 0 , 0);
 		if (_LyricFile == NULL) return NULL;
 
@@ -229,17 +252,18 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 		szRes = new CHAR[i + 1];
 		WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
 		*/
-		string UTF8;
+		string UTF8source;
 		WCHAR* strSrc;
 		LPSTR szRes;
 
-		int i = WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, NULL, 0, NULL, NULL);
+		int i = WideCharToMultiByte(CP_UTF8, 0, _k_CombinedLyric.c_str(), -1, NULL, 0, NULL, NULL);
 		szRes = new CHAR[i + 1];
-		WideCharToMultiByte(CP_ACP, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
+		WideCharToMultiByte(CP_UTF8, 0, _k_CombinedLyric.c_str(), -1, szRes, i, NULL, NULL);
 
-		UTF8 = szRes;
+		UTF8source = szRes;
 		
-		fprintf(_LyricFile, "%s", UTF8.c_str());
+		fwrite(UTF8source.c_str(), sizeof(char), strlen(UTF8source.c_str()), _LyricFile);
+		
 		fclose(_LyricFile);
 
 		return true;
