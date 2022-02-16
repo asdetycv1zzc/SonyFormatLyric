@@ -31,39 +31,6 @@ const string UTF8ToGB(const char* str)
 
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
-	/*
-	fstream _LyricFile;
-	try
-	{
-		unsigned long long i = 0;
-
-		_LyricFile.open(_k_LyricAddress, ios::in | ios::binary);
-		_LyricFile.seekg(0, ios::beg);
-
-		if (!_LyricFile.is_open()) return NULL;
-
-		auto _size = _s_GetLyricLength(_k_LyricAddress);
-
-		vector<wchar_t> _TempContent(_size, 0);
-		wstring _Content;
-
-		_Content.resize(_size, 0);
-
-		while (_LyricFile.read((char*)&_TempContent[i], sizeof(wchar_t)))
-		{
-			_Content[i] = _TempContent[i];
-			i++;
-		}
-		return _Content;
-	}
-	catch (const exception& e)
-	{
-		cerr << e.what() << endl;
-		if (_LyricFile.is_open())
-			_LyricFile.close();
-		return NULL;
-	}
-	*/
 	FILE* fp = NULL;
 	fp = _wfopen(_k_LyricAddress.c_str(), L"rb+");
 	fseek(fp, 0, SEEK_END);
@@ -73,7 +40,12 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 	std::string result;
 	std::wstring _result;
 
-	if (fp != NULL)
+	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
+
+	if (fp == NULL) return L"";
+	switch (_LyricEncoding)
+	{
+	case TextEncoding::UTF8WithoutBOM:
 	{
 		// UTF-8 file should offset 3 byte from start position.
 		fseek(fp, 0, 0);
@@ -93,11 +65,13 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 		_result = strSrc;
 
 		delete[] strSrc;
+
+		fclose(fp);
+		//auto _result = wstring(result.begin(), result.end());
+		return _result;
+	}
 	}
 
-	fclose(fp);
-	//auto _result = wstring(result.begin(), result.end());
-	return _result;
 }
 const unsigned long long LyricHelper::_s_GetLyricLength(const wstring& _k_LyricAddress)
 {
@@ -132,6 +106,7 @@ const unsigned long long LyricHelper::_GetLyricLength()
 const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddress)
 {
 	ifstream fin(_k_LyricAddress, ios::in | ios::binary);
+	TextEncoding _result = TextEncoding::UNKNOWN;
 	try
 	{
 		string _temp;
@@ -140,8 +115,6 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 		int p = s2 << 8;
 		fin.read((char*)&s2, sizeof(s2));//读取第二个字节
 		p |= s2;
-
-		TextEncoding _result;
 
 		switch (p)//判断文本前两个字节
 		{
@@ -167,7 +140,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			{
 				_result = TextEncoding::GB2312;
 				break;
-			}	
+			}
 		}
 		}
 		fin.close();
@@ -178,7 +151,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 		cerr << e.what() << endl;
 		if (fin.is_open())
 			fin.close();
-		return TextEncoding::UNKNOWN;
+		return _result;
 	}
 
 }
