@@ -33,6 +33,8 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
 	FILE* fp = NULL;
 	fp = _wfopen(_k_LyricAddress.c_str(), L"rb+");
+
+	if (fp == NULL) return L"";
 	fseek(fp, 0, SEEK_END);
 	size_t size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
@@ -42,9 +44,34 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 
 	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
 
-	if (fp == NULL) return L"";
+	
 	switch (_LyricEncoding)
 	{
+	case TextEncoding::UTF8WithBOM:
+	{
+		// UTF-8 file should offset 3 byte from start position.
+		fseek(fp, 0, 0);
+		int buferSize = (int)size;
+		char* szBuf = new char[buferSize + 1];
+		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
+		fread(szBuf, sizeof(char), buferSize, fp);
+		result.append(szBuf);
+		delete[] szBuf;
+
+		WCHAR* strSrc;
+
+		int i = MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, NULL, 0);
+		strSrc = new WCHAR[i + 1];
+		MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, strSrc, i);
+
+		_result = strSrc;
+
+		delete[] strSrc;
+
+		fclose(fp);
+		//auto _result = wstring(result.begin(), result.end());
+		return _result;
+	}
 	case TextEncoding::UTF8WithoutBOM:
 	{
 		// UTF-8 file should offset 3 byte from start position.
@@ -105,16 +132,21 @@ const unsigned long long LyricHelper::_GetLyricLength()
 
 const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddress)
 {
-	ifstream fin(_k_LyricAddress, ios::in | ios::binary);
+	ifstream _LyricFile(_k_LyricAddress, ios::in | ios::binary);
 	TextEncoding _result = TextEncoding::UNKNOWN;
 	try
 	{
 		string _temp;
 		unsigned char s2;
-		fin.read((char*)&s2, sizeof(s2));//读取第一个字节，然后左移8位
+		_LyricFile.read((char*)&s2, sizeof(s2));//读取第一个字节，然后左移8位
 		int p = s2 << 8;
-		fin.read((char*)&s2, sizeof(s2));//读取第二个字节
+		_LyricFile.read((char*)&s2, sizeof(s2));//读取第二个字节
 		p |= s2;
+
+		auto _size = _s_GetLyricLength(_k_LyricAddress);
+
+		_temp.clear();
+		_temp.resize(_size,0);
 
 		switch (p)//判断文本前两个字节
 		{
@@ -129,8 +161,9 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			break;
 		default:
 		{
-			fin.seekg(0, ios::beg);
-			fin >> _temp;
+			_LyricFile.seekg(0, ios::beg);
+			for (size_t i = 0; i < _size; i++)
+				_LyricFile.read(&_temp[i], sizeof(char));
 			if (IsUTF8WithoutBOM(const_cast<char*>(_temp.c_str()), _temp.size()))
 			{
 				_result = TextEncoding::UTF8WithoutBOM;
@@ -143,14 +176,14 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			}
 		}
 		}
-		fin.close();
+		_LyricFile.close();
 		return _result;
 	}
 	catch (const exception& e)
 	{
 		cerr << e.what() << endl;
-		if (fin.is_open())
-			fin.close();
+		if (_LyricFile.is_open())
+			_LyricFile.close();
 		return _result;
 	}
 
