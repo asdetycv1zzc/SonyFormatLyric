@@ -1,4 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<string>
 #include<vector>
@@ -31,38 +30,36 @@ const string UTF8ToGB(const char* str)
 
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
-	FILE* fp = NULL;
-	fp = _wfopen(_k_LyricAddress.c_str(), L"rb+");
-
-	if (fp == NULL) return L"";
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-
-	std::string result;
-	std::wstring _result;
-
 	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
-
 	
 	switch (_LyricEncoding)
 	{
 	case TextEncoding::UTF8WithBOM:
 	{
+		FILE* fp = NULL;
+		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
+
+		if (fp == NULL) return L"";
+		fseek(fp, 0, SEEK_END);
+		size_t size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		std::string src;
+		std::wstring _result;
 		// UTF-8 file should offset 3 byte from start position.
-		fseek(fp, 0, 0);
+		fseek(fp, sizeof(char) * 3, 0);
 		int buferSize = (int)size;
 		char* szBuf = new char[buferSize + 1];
 		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
 		fread(szBuf, sizeof(char), buferSize, fp);
-		result.append(szBuf);
+		src.append(szBuf);
 		delete[] szBuf;
 
 		WCHAR* strSrc;
 
-		int i = MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, NULL, 0);
+		int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
 		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, strSrc, i);
+		MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
 
 		_result = strSrc;
 
@@ -74,24 +71,73 @@ const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 	}
 	case TextEncoding::UTF8WithoutBOM:
 	{
+		FILE* fp = NULL;
+		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
+
+		if (fp == NULL) return L"";
+		fseek(fp, 0, SEEK_END);
+		size_t size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		std::string src;
+		std::wstring _result;
 		// UTF-8 file should offset 3 byte from start position.
 		fseek(fp, 0, 0);
 		int buferSize = (int)size;
 		char* szBuf = new char[buferSize + 1];
 		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
 		fread(szBuf, sizeof(char), buferSize, fp);
+		src.append(szBuf);
+		delete[] szBuf;
+
+		WCHAR* strSrc;
+
+		int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
+		strSrc = new WCHAR[i + 1];
+		MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
+
+		_result = strSrc;
+
+		delete[] strSrc;
+
+		fclose(fp);
+		//auto _result = wstring(result.begin(), result.end());
+		return _result;
+	}
+	case TextEncoding::UnicodeBigEndian:
+	{
+		FILE* fp = NULL;
+		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+, ccs=UTF-16LE");
+
+		if (fp == NULL) return L"";
+		fseek(fp, 0, SEEK_END);
+		size_t size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		//std::string result;
+		std::wstring _result;
+		// UTF-16 file should offset 3 byte from start position.
+		fseek(fp, sizeof(char) * 3, 0);
+		int buferSize = (int)size;
+		
+		wchar_t* szBuf = new wchar_t[buferSize + 1];
+		memset(szBuf, 0, sizeof(wchar_t) * (buferSize + 1));
+		fread(szBuf, sizeof(wchar_t), buferSize, fp);
+		/*
+		fread(szBuf, sizeof(char), buferSize, fp);
 		result.append(szBuf);
 		delete[] szBuf;
 
 		WCHAR* strSrc;
 
-		int i = MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, NULL, 0);
+		int i = MultiByteToWideChar(CP_OEMCP, 0, result.c_str(), -1, NULL, 0);
 		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_UTF8, 0, result.c_str(), -1, strSrc, i);
+		MultiByteToWideChar(CP_OEMCP, 0, result.c_str(), -1, strSrc, i);
 
 		_result = strSrc;
 
 		delete[] strSrc;
+		*/
 
 		fclose(fp);
 		//auto _result = wstring(result.begin(), result.end());
@@ -307,7 +353,7 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 	try
 	{
 		//unsigned long long i = 0;
-		_LyricFile = _wfopen(_k_LyricAddress.c_str(), L"wb");
+		_wfopen_s(&_LyricFile,_k_LyricAddress.c_str(), L"wb");
 		fseek(_LyricFile, 0, 0);
 		if (_LyricFile == NULL) return NULL;
 
