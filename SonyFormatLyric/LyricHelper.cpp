@@ -1,7 +1,9 @@
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include<iostream>
 #include<string>
 #include<vector>
 #include<fstream>
+#include<codecvt>
 #include<algorithm>
 #include"LyricHelper.h"
 #include"UnicodeToUTF8.h"
@@ -31,120 +33,69 @@ const string UTF8ToGB(const char* str)
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
 	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
-	
+	FILE* fp = NULL;
+	auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
+
+	if (fp == NULL) return L"";
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	std::string src;
+	std::wstring _result;
 	switch (_LyricEncoding)
 	{
 	case TextEncoding::UTF8WithBOM:
 	{
-		FILE* fp = NULL;
-		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
-
-		if (fp == NULL) return L"";
-		fseek(fp, 0, SEEK_END);
-		size_t size = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-
-		std::string src;
-		std::wstring _result;
 		// UTF-8 file should offset 3 byte from start position.
 		fseek(fp, sizeof(char) * 3, 0);
-		int buferSize = (int)size;
-		char* szBuf = new char[buferSize + 1];
-		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
-		fread(szBuf, sizeof(char), buferSize, fp);
-		src.append(szBuf);
-		delete[] szBuf;
-
-		WCHAR* strSrc;
-
-		int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
-		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
-
-		_result = strSrc;
-
-		delete[] strSrc;
-
-		fclose(fp);
-		//auto _result = wstring(result.begin(), result.end());
-		return _result;
+		
 	}
 	case TextEncoding::UTF8WithoutBOM:
 	{
-		FILE* fp = NULL;
-		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
-
-		if (fp == NULL) return L"";
-		fseek(fp, 0, SEEK_END);
-		size_t size = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-
-		std::string src;
-		std::wstring _result;
-		// UTF-8 file should offset 3 byte from start position.
+		// UTF-8 file without BOM should offset 0 byte from start position.
 		fseek(fp, 0, 0);
-		int buferSize = (int)size;
-		char* szBuf = new char[buferSize + 1];
-		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
-		fread(szBuf, sizeof(char), buferSize, fp);
-		src.append(szBuf);
-		delete[] szBuf;
+	}
+	}
+	int buferSize = (int)size;
+	char* szBuf = new char[buferSize + 1];
+	memset(szBuf, 0, sizeof(char) * (buferSize + 1));
+	fread(szBuf, sizeof(char), buferSize, fp);
+	src.append(szBuf);
+	delete[] szBuf;
 
-		WCHAR* strSrc;
+	WCHAR* strSrc = NULL;
 
+	switch (_LyricEncoding)
+	{
+	case TextEncoding::UTF8WithBOM:
+	{
+		[[fallthrough]];
+	}
+	case TextEncoding::UTF8WithoutBOM:
+	{
 		int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
 		strSrc = new WCHAR[i + 1];
 		MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
-
-		_result = strSrc;
-
-		delete[] strSrc;
-
-		fclose(fp);
-		//auto _result = wstring(result.begin(), result.end());
-		return _result;
+		break;
 	}
-	case TextEncoding::UnicodeBigEndian:
+	case TextEncoding::ANSI:
 	{
-		FILE* fp = NULL;
-		auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+, ccs=UTF-16LE");
-
-		if (fp == NULL) return L"";
-		fseek(fp, 0, SEEK_END);
-		size_t size = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-
-		//std::string result;
-		std::wstring _result;
-		// UTF-16 file should offset 3 byte from start position.
-		fseek(fp, sizeof(char) * 3, 0);
-		int buferSize = (int)size;
-		
-		wchar_t* szBuf = new wchar_t[buferSize + 1];
-		memset(szBuf, 0, sizeof(wchar_t) * (buferSize + 1));
-		fread(szBuf, sizeof(wchar_t), buferSize, fp);
-		/*
-		fread(szBuf, sizeof(char), buferSize, fp);
-		result.append(szBuf);
-		delete[] szBuf;
-
-		WCHAR* strSrc;
-
-		int i = MultiByteToWideChar(CP_OEMCP, 0, result.c_str(), -1, NULL, 0);
+		int i = MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, NULL, 0);
 		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_OEMCP, 0, result.c_str(), -1, strSrc, i);
+		MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, strSrc, i);
 
-		_result = strSrc;
-
-		delete[] strSrc;
-		*/
-
-		fclose(fp);
-		//auto _result = wstring(result.begin(), result.end());
-		return _result;
+		break;
+	}
+	case TextEncoding::UNKNOWN:
+	{
+		return L"";
 	}
 	}
-
+	_result = strSrc;
+	delete[] strSrc;
+	fclose(fp);
+	//auto _result = wstring(result.begin(), result.end());
+	return _result;
 }
 const unsigned long long LyricHelper::_s_GetLyricLength(const wstring& _k_LyricAddress)
 {
@@ -200,7 +151,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			_result = TextEncoding::Unicode;
 			break;
 		case 0xfeff:	//65279
-			_result = TextEncoding::UnicodeBigEndian;
+			//_result = TextEncoding::UnicodeBigEndian;
 			break;
 		case 0xefbb:	//61371
 			_result = TextEncoding::UTF8WithBOM;
@@ -217,7 +168,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			}
 			else
 			{
-				_result = TextEncoding::GB2312;
+				_result = TextEncoding::ANSI;
 				break;
 			}
 		}

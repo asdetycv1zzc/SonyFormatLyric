@@ -17,8 +17,7 @@ enum TextEncoding
 	UTF8WithBOM,
 	ANSI,
 	Unicode,
-	UnicodeBigEndian,
-	GB2312,
+	//UnicodeBigEndian, //I can't come up with any idea to solve this
 	UNKNOWN,
 };
 
