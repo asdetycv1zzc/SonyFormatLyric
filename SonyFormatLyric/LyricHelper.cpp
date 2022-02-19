@@ -33,69 +33,78 @@ const string UTF8ToGB(const char* str)
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
 	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
-	FILE* fp = NULL;
-	auto err = _wfopen_s(&fp, _k_LyricAddress.c_str(), L"rb+");
+	FILE* _LyricFile = NULL;
+	auto err = _wfopen_s(&_LyricFile, _k_LyricAddress.c_str(), L"rb+");
 
-	if (fp == NULL) return L"";
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	std::string src;
-	std::wstring _result;
-	switch (_LyricEncoding)
+	if (_LyricFile == NULL) return L"";
+	try
 	{
-	case TextEncoding::UTF8WithBOM:
-	{
-		// UTF-8 file should offset 3 byte from start position.
-		fseek(fp, sizeof(char) * 3, 0);
-		
-	}
-	case TextEncoding::UTF8WithoutBOM:
-	{
-		// UTF-8 file without BOM should offset 0 byte from start position.
-		fseek(fp, 0, 0);
-	}
-	}
-	int buferSize = (int)size;
-	char* szBuf = new char[buferSize + 1];
-	memset(szBuf, 0, sizeof(char) * (buferSize + 1));
-	fread(szBuf, sizeof(char), buferSize, fp);
-	src.append(szBuf);
-	delete[] szBuf;
+		fseek(_LyricFile, 0, SEEK_END);
+		size_t size = ftell(_LyricFile);
+		fseek(_LyricFile, 0, SEEK_SET);
+		std::string src;
+		std::wstring _result;
+		switch (_LyricEncoding)
+		{
+		case TextEncoding::UTF8WithBOM:
+		{
+			// UTF-8 file should offset 3 byte from start position.
+			fseek(_LyricFile, sizeof(char) * 3, 0);
 
-	WCHAR* strSrc = NULL;
+		}
+		case TextEncoding::UTF8WithoutBOM:
+		{
+			// UTF-8 file without BOM should offset 0 byte from start position.
+			fseek(_LyricFile, 0, 0);
+		}
+		}
+		int buferSize = (int)size;
+		char* szBuf = new char[buferSize + 1];
+		memset(szBuf, 0, sizeof(char) * (buferSize + 1));
+		fread(szBuf, sizeof(char), buferSize, _LyricFile);
+		src.append(szBuf);
+		delete[] szBuf;
 
-	switch (_LyricEncoding)
-	{
-	case TextEncoding::UTF8WithBOM:
-	{
-		[[fallthrough]];
-	}
-	case TextEncoding::UTF8WithoutBOM:
-	{
-		int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
-		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
-		break;
-	}
-	case TextEncoding::ANSI:
-	{
-		int i = MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, NULL, 0);
-		strSrc = new WCHAR[i + 1];
-		MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, strSrc, i);
+		WCHAR* strSrc = NULL;
 
-		break;
+		switch (_LyricEncoding)
+		{
+		case TextEncoding::UTF8WithBOM:
+		{
+			[[fallthrough]];
+		}
+		case TextEncoding::UTF8WithoutBOM:
+		{
+			int i = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, NULL, 0);
+			strSrc = new WCHAR[i + 1];
+			MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, strSrc, i);
+			break;
+		}
+		case TextEncoding::ANSI:
+		{
+			int i = MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, NULL, 0);
+			strSrc = new WCHAR[i + 1];
+			MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, strSrc, i);
+			break;
+		}
+		case TextEncoding::UNKNOWN:
+		{
+			return L"";
+		}
+		}
+		_result = strSrc;
+		delete[] strSrc;
+		fclose(_LyricFile);
+		//auto _result = wstring(result.begin(), result.end());
+		return _result;
 	}
-	case TextEncoding::UNKNOWN:
+	catch (const exception& e)
 	{
+		cerr << e.what() << endl;
+		if (_LyricFile != NULL)
+			fclose(_LyricFile);
 		return L"";
 	}
-	}
-	_result = strSrc;
-	delete[] strSrc;
-	fclose(fp);
-	//auto _result = wstring(result.begin(), result.end());
-	return _result;
 }
 const unsigned long long LyricHelper::_s_GetLyricLength(const wstring& _k_LyricAddress)
 {
@@ -143,7 +152,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 		auto _size = _s_GetLyricLength(_k_LyricAddress);
 
 		_temp.clear();
-		_temp.resize(_size,0);
+		_temp.resize(_size, 0);
 
 		switch (p)//判断文本前两个字节
 		{
@@ -298,15 +307,15 @@ const wstring LyricHelper::_s_CombineAllLyric(const vector<wstring>& _k_LyricLin
 	return _result;
 }
 
-const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstring& _k_CombinedLyric)
+const ConvertionStatus LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstring& _k_CombinedLyric)
 {
 	FILE* _LyricFile = NULL;
 	try
 	{
 		//unsigned long long i = 0;
-		_wfopen_s(&_LyricFile,_k_LyricAddress.c_str(), L"wb");
+		_wfopen_s(&_LyricFile, _k_LyricAddress.c_str(), L"wb");
 		fseek(_LyricFile, 0, 0);
-		if (_LyricFile == NULL) return NULL;
+		if (_LyricFile == NULL) return ConvertionStatus::OpenFileFailed;
 
 		auto _size = _k_CombinedLyric.size();
 		//char* UTF8Content = UnicodeToUtf8(_k_CombinedLyric.c_str());
@@ -332,26 +341,26 @@ const bool LyricHelper::_s_WriteLyric(const wstring& _k_LyricAddress, const wstr
 
 		fclose(_LyricFile);
 
-		return true;
+		return ConvertionStatus::Success;
 	}
 	catch (const exception& e)
 	{
-		cerr << e.what() << endl;
+		wcerr << e.what() << endl;
 		if (_LyricFile != NULL)
 			fclose(_LyricFile);
-		return false;
+		return ConvertionStatus::UndefinedError;
 	}
 }
-const bool LyricHelper::_WriteLyric(const wstring& _k_CombinedLyric)
+const ConvertionStatus LyricHelper::_WriteLyric(const wstring& _k_CombinedLyric)
 {
 	return _s_WriteLyric(LyricHelper::LyricAddress, _k_CombinedLyric);
 }
 
-const bool LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType)
+const ConvertionStatus LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType)
 {
 	auto _sourceLyric = _s_ReadLyric(k_LyricAddress);
-	if (!_s_BackupLyric(k_LyricAddress)) return false;
-	if (_sourceLyric.find(L'[') == wstring::npos || _sourceLyric.find(L']') == wstring::npos) return true;
+	if (!_s_BackupLyric(k_LyricAddress))return ConvertionStatus::BackupFailed;
+	if (_sourceLyric.find(L'[') == wstring::npos || _sourceLyric.find(L']') == wstring::npos) return ConvertionStatus::NotLyricFormat;
 	auto _splitedLyric = _s_SplitLyric(_sourceLyric);
 	auto _size = _splitedLyric.size();
 	wstring _tempLyricContent, _tempConvertedTime;
@@ -365,21 +374,37 @@ const bool LyricHelper::s_ConvertLyric(const wstring& k_LyricAddress, const Line
 	}
 	auto _tempAllLyric = _s_CombineAllLyric(_tempAllLyricLines, k_LinebreakType);
 	auto _result = _s_WriteLyric(k_LyricAddress, _tempAllLyric);
-	return _result;
+	if (_result) return ConvertionStatus::Success;
+	return ConvertionStatus::UndefinedError;
 }
-const bool LyricHelper::ConvertLyric(const LinebreakType& k_LinebreakType)
+const ConvertionStatus LyricHelper::ConvertLyric(const LinebreakType& k_LinebreakType)
 {
-	return s_ConvertLyric(LyricHelper::LyricAddress, k_LinebreakType);
+	auto _status = s_ConvertLyric(LyricHelper::LyricAddress, k_LinebreakType);
+	Status = _status;
+	return Status;
+}
+
+const ConvertionStatus LyricHelper::GetConvertionStatus()
+{
+	return Status;
+}
+
+const wstring LyricHelper::GetLyricShortAddress()
+{
+	auto _shortAddress = this->LyricAddress.substr(this->LyricAddress.find_last_of(L"\\") + 1);
+	return _shortAddress;
 }
 
 LyricHelper::LyricHelper()
 {
 	this->LyricAddress = L"";
+	this->Status = ConvertionStatus::UndefinedError;
 }
 LyricHelper::LyricHelper(const wstring& k_LyricAddress, const LinebreakType& k_LinebreakType)
 {
 	this->LyricAddress.clear();
 	this->LyricAddress += wstring(k_LyricAddress);
+	this->Status = ConvertionStatus::UndefinedError;
 }
 LyricHelper::~LyricHelper()
 {

@@ -21,10 +21,21 @@ enum TextEncoding
 	UNKNOWN,
 };
 
+enum ConvertionStatus
+{
+	Success = true,
+	FileNotFound,
+	OpenFileFailed,
+	NoContent,
+	BackupFailed,
+	NotLyricFormat,
+	UndefinedError = false,
+};
 class LyricHelper
 {
 private:
 	std::wstring LyricAddress;
+	ConvertionStatus Status;
 
 	const static std::wstring _s_ReadLyric(const std::wstring& _k_LyricAddress);
 	const static unsigned long long _s_GetLyricLength(const std::wstring& _k_LyricAddress);
@@ -48,8 +59,8 @@ private:
 	const static std::wstring _s_CombineLyricLine(const std::wstring& _k_ConvertedTime, const std::wstring& _k_LyricLine);
 	const static std::wstring _s_CombineAllLyric(const std::vector<std::wstring>& _k_LyricLines, const LinebreakType& _k_LinebreakType = LinebreakType::UNIX);
 
-	const static bool _s_WriteLyric(const std::wstring& _k_LyricAddress, const std::wstring& _k_CombinedLyric);
-	const bool _WriteLyric(const std::wstring& _k_CombinedLyric);
+	const static ConvertionStatus _s_WriteLyric(const std::wstring& _k_LyricAddress, const std::wstring& _k_CombinedLyric);
+	const ConvertionStatus _WriteLyric(const std::wstring& _k_CombinedLyric);
 
 public:
 
@@ -78,7 +89,10 @@ public:
 	//static wstring s_WriteLyric(const wstring& k_LyricAddress);
 	//wstring WriteLyric();
 
-	const static bool s_ConvertLyric(const std::wstring& k_LyricAddress, const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
-	const bool ConvertLyric(const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
+	const static ConvertionStatus s_ConvertLyric(const std::wstring& k_LyricAddress, const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
+	const ConvertionStatus ConvertLyric(const LinebreakType& k_LinebreakType = LinebreakType::UNIX);
 
+	const ConvertionStatus GetConvertionStatus();
+
+	const std::wstring GetLyricShortAddress();
 };
