@@ -33,6 +33,7 @@ const string UTF8ToGB(const char* str)
 const wstring LyricHelper::_s_ReadLyric(const wstring& _k_LyricAddress)
 {
 	auto _LyricEncoding = _s_GetLyricEncoding(_k_LyricAddress);
+	if (_LyricEncoding == TextEncoding::UnicodeBigEndian) return L"";
 	FILE* _LyricFile = NULL;
 	auto err = _wfopen_s(&_LyricFile, _k_LyricAddress.c_str(), L"rb+");
 
@@ -160,7 +161,7 @@ const TextEncoding LyricHelper::_s_GetLyricEncoding(const wstring& _k_LyricAddre
 			_result = TextEncoding::Unicode;
 			break;
 		case 0xfeff:	//65279
-			//_result = TextEncoding::UnicodeBigEndian;
+			_result = TextEncoding::UnicodeBigEndian;
 			break;
 		case 0xefbb:	//61371
 			_result = TextEncoding::UTF8WithBOM;

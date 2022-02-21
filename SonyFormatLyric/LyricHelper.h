@@ -17,7 +17,7 @@ enum TextEncoding
 	UTF8WithBOM,
 	ANSI,
 	Unicode,
-	//UnicodeBigEndian, //I can't come up with any idea to solve this
+	UnicodeBigEndian, //I can't come up with any idea to solve this
 	UNKNOWN,
 };
 
@@ -29,6 +29,7 @@ enum ConvertionStatus
 	NoContent,
 	BackupFailed,
 	NotLyricFormat,
+	NotUTF8Format,
 	UndefinedError = false,
 };
 class LyricHelper
